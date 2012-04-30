@@ -37,8 +37,8 @@ counting = 0
 -- INIT: initialize the neuFlow context
 -- a mem manager, the dataflow core, and the compiler
 
-
-neuFlow = neuflow.init()
+-- platform='xilinx_ml605' or platform='pico_m503'
+neuFlow = neuflow.init{platform='pico_m503'}
 
 ----------------------------------------------------------------------
 -- ELABORATION: describe the algorithm to be run on neuFlow, and 
@@ -241,6 +241,7 @@ end neuFlow:endLoop('main')
 
 
 -- LOAD: load the bytecode on the device, and execute it
+neuFlow:sendReset()
 neuFlow:loadBytecode()
 
 
