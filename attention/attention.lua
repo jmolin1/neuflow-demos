@@ -42,7 +42,6 @@ counting = 0
 local platform = 'pico_m503'
 neuFlow = neuflow.init {
    prog_name   = 'attention',
-  global_msg_level = 'detailled',
    platform    = platform,
 
 }
@@ -262,6 +261,8 @@ function process()
    	end
    
  	if (target=='neuflow') then	
+        profiler_onboard = neuFlow.profiler:start('on-board-processing')
+        neuFlow.profiler:setColor('on-board-processing', 'blue')
 		neuFlow:copyToDev(intensity)
 		neuFlow:copyToDev(inputs)
 		neuFlow:copyToDev(intensitydiv)
@@ -273,7 +274,7 @@ function process()
 		neuFlow:copyFromDev(output5)
 	
 		neuFlow:copyFromDev(salience)
-		
+		neuFlow.profiler:lap('on-board-processing')
 	else
 
 	one_map = torch.Tensor(1,size,size)
