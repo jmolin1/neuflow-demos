@@ -1,0 +1,14 @@
+
+Run no the board 
+camera: 
+sudo torch ./run.lua -nf true
+video:
+sudo torch ./run.lua -v ./videos/street-brooklyn-1.mov -nf true
+
+
+
+Run no the cpu
+camera: 
+sudo torch ./run.lua 
+video:
+sudo torch ./run.lua -v ./videos/street-brooklyn-1.mov 
