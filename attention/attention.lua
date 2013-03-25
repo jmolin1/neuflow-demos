@@ -1,3 +1,4 @@
+#!/usr/bin/env torch
 ---------------------------------------------------------------
 
 
@@ -13,7 +14,6 @@ require 'xlua'
 require 'os'
 require 'torch'
 require 'qt'
---require 'lab'
 
 require 'qtwidget'
 require 'qtuiloader'
@@ -30,7 +30,7 @@ op:option{'-c', '--camera', action='store', dest='camidx',
           default=0}
 opt,args = op:parse()
 target = 'neuflow' or 'cpu'
-last_name=target
+last_name = target
 last_fps = -1
 counting = 0
 ----------------------------------------------------------------------
@@ -38,7 +38,15 @@ counting = 0
 -- a mem manager, the dataflow core, and the compiler
 
 -- platform='xilinx_ml605' or platform='pico_m503'
-neuFlow = neuflow.init{platform='pico_m503'}
+
+local platform = 'pico_m503'
+neuFlow = neuflow.init {
+   prog_name   = 'attention',
+  global_msg_level = 'detailled',
+   platform    = platform,
+
+}
+
 
 ----------------------------------------------------------------------
 -- ELABORATION: describe the algorithm to be run on neuFlow, and 
@@ -66,10 +74,8 @@ intensityB=torch.Tensor(size,size)
 --absolute module
 --------------------------------------------
 
-absnet=nn.Sequential()
-absnet:add(nn.Abs())
+absnet=nn.Abs()
 ---------------------------------------------
-
 
 ---------------------
 -- edgenet module
@@ -77,39 +83,20 @@ absnet:add(nn.Abs())
 
 edgenet = nn.Sequential()
 m = nn.SpatialConvolution(1,1,3,3,1,1)
-m.weight[1][1][1][1] = 0
-m.weight[1][1][2][1] = -1
-m.weight[1][1][3][1] = 0
-m.weight[1][1][1][2] = -1
-m.weight[1][1][2][2] = 4
-m.weight[1][1][3][2] = -1
-m.weight[1][1][1][3] = 0
-m.weight[1][1][2][3] = -1
-m.weight[1][1][3][3] = 0
 m.bias:fill(0)
-n = nn.SpatialPadding(1,1,1,1)
-o = nn.Abs()
+m.weight=torch.Tensor{{{{0,-1,0},{-1,4,-1},{0,-1,0}}}}
 edgenet:add(m)
-edgenet:add(n)
-edgenet:add(o)
-
+edgenet:add(nn.SpatialPadding(1,1,1,1))
+edgenet:add(nn.Abs())
 --------------------------
 -- edgestrip module
 --------------------------
 
 edgestrip = nn.Sequential()
-m = nn.SpatialConvolution(1,1,3,3,1,1)
-m.weight[1][1][1][1] = 0
-m.weight[1][1][2][1] = 0
-m.weight[1][1][3][1] = 0
-m.weight[1][1][1][2] = 0
-m.weight[1][1][2][2] = 1
-m.weight[1][1][3][2] = 0
-m.weight[1][1][1][3] = 0
-m.weight[1][1][2][3] = 0
-m.weight[1][1][3][3] = 0
-m.bias:fill(0)
-edgestrip:add(m)
+edgestrip:add(nn.SpatialConvolution(1,1,3,3,1,1))
+edgestrip.modules[1].weight=torch.Tensor{{{{0,0,0},{0,1,0},{0,0,0}}}}
+edgestrip.modules[1].bias:fill(0)
+
 ------------------------------------------------------
 
 -------------------------------------------------
@@ -157,14 +144,7 @@ end
 ----------------------
 
 -- Matrix to use in sobel operation (Edge detection)
-kernel=torch.Tensor(3,3)
-n=kernel:storage()
-n[1]=0 n[2]=-1 n[3]=0
-n[4]=-1 n[5]=4 n[6]=-1
-n[7]=0 n[8]=-1 n[9]=0
-
-
-
+kernel=torch.Tensor{{0,-1,0},{-1,4,-1},{0,-1,0}}
 
 --copy first image (Note this operation is done only one time so not in the loop)
 
@@ -247,9 +227,6 @@ neuFlow:loadBytecode()
 
 ----------------------------------------------------------------------
 -- EXEC: this part executes the host code, and interacts with the dev
---
-
-
 
 camera=image.Camera{}
 
@@ -266,8 +243,8 @@ function process()
    intensitydiv=intensitydiv+1
    camFrameY=camFrameYa:select(1,1)
    
-
-   image.scale(camFrameY, intensity, 'bilinear')
+   intensity=torch.Tensor(1, size, size)
+   image.scale(camFrameY, intensity[1], 'bilinear')
    image.scale(camFrame, inputs, 'bilinear')
 
 	-- Remember copyHost() inserted in device parts need to 
@@ -278,6 +255,7 @@ function process()
 	-- This part provides that matching, if target is neuflow for the first time we send the intensity maps to device  
    
   	if (target=='neuflow') and (counting==0) then
+        print(intensity:size())
    		neuFlow:copyToDev(intensity)
    		neuFlow:copyToDev(intensity)
    		counting=1
@@ -303,42 +281,42 @@ function process()
 	three_map = torch.Tensor(1,size,size)
 	four_map = torch.Tensor(1,size,size)
 	I_map = torch.Tensor(1,size,size)
-		profiler_cpu = neuFlow.profiler:start('compute-cpu')
-		neuFlow.profiler:setColor('compute-cpu', 'blue')
+    profiler_cpu = neuFlow.profiler:start('compute-cpu')
+    neuFlow.profiler:setColor('compute-cpu', 'blue')
    
 	intensityA:copy(intensityB)
 	intensityB:copy(intensity)
 
-		--get Temporal Difference map
-		output5 = (intensityB - intensityA):abs()
-		output5:resize(1,output5:size(1), output5:size(2))
-		one_map:copy(output5)
+	--get Temporal Difference map
+	output5 = (intensityB - intensityA):abs()
+	output5:resize(1,output5:size(1), output5:size(2))
+	one_map:copy(output5)
   
-		-- get RG map
-		output3 = (inputs:select(1,1) - inputs:select(1,2)):cdiv(intensitydiv)
-		output3:resize(1, output3:size(1), output3:size(2))   
-		two_map:copy(output3)
+	-- get RG map
+	output3 = (inputs:select(1,1) - inputs:select(1,2)):cdiv(intensitydiv)
+	output3:resize(1, output3:size(1), output3:size(2))   
+	two_map:copy(output3)
 		
-		-- get BY map
-		mid = ((inputs:select(1,1))+(inputs:select(1,2))):mul(0.5)
-		output2 = ((inputs:select(1,3))-(mid)):cdiv(intensitydiv)
-		output2:resize(1,output2:size(1), output2:size(2))
-		three_map:copy(output2) 
+	-- get BY map
+	mid = ((inputs:select(1,1))+(inputs:select(1,2))):mul(0.5)
+	output2 = ((inputs:select(1,3))-(mid)):cdiv(intensitydiv)
+	output2:resize(1,output2:size(1), output2:size(2))
+	three_map:copy(output2) 
 
-		-- get Edge map
-		intensitymap = torch.Tensor(1,size,size)
-		intensitymap:copy(intensityB)
-		output4 = edgenet:forward((intensitymap))
-		four_map:copy(output4)
+	-- get Edge map
+	intensitymap = torch.Tensor(1,size,size)
+	intensitymap:copy(intensityB)
+	output4 = edgenet:forward((intensitymap))
+	four_map:copy(output4)
 
-		I_map:copy(intensitydiv-1)   
+	I_map:copy(intensitydiv-1)   
 
 	-- multiplication and addition operations to find the saliency map
 	temp = (one_map:mul(0.4)):add(two_map:mul(0.1)):add(three_map:mul(0.1)):add(I_map:mul(0.1)):add(four_map:mul(0.3))
 	salience = edgestrip:forward(temp)   
 
-   neuFlow.profiler:lap('compute-cpu')
-   end
+    neuFlow.profiler:lap('compute-cpu')
+    end
 
 
 	
