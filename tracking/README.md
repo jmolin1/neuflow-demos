@@ -1,4 +1,4 @@
-# Tracking with Deep Neural Network
+# Tracking with Deep Neural Networks
 
 This script provides a real-time tracking with a video sequence
 from a camera or datasets (presented at CISS 2013)
@@ -8,9 +8,12 @@ from a camera or datasets (presented at CISS 2013)
 To run this program, you will need to install Torch7 and 'nnx' package
 In addition to the usual (torch, nnx, etc.) this demo requires the 
 following modules to be installed via luarocks:
->> neuflow
->> inline
->> image
+
+``` sh
+neuflow
+inline
+image
+```
 
 ## Demonstration
 

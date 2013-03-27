@@ -96,7 +96,7 @@ function display.update()
                        win=painter,
                        x=dispimg:size(3)*window_zoom + (id-1)*sizew*window_zoom,
                        y=0,
-                       zoom=window_zoom}
+                       zoom=window_zoom/2}
       end
       
       -- display current protos
@@ -106,8 +106,8 @@ function display.update()
                image.display{image=proto.patch,
                              legend=(k==1 and 'Obj-'..id) or nil,
                              win=painter,
-                             x=dispimg:size(3)*1.5*window_zoom + (id-1+(k-(k-1)%3)/3)*sizew*window_zoom,
-                             y=((k-1)%3)*sizeh*window_zoom + dispimg:size(2)*window_zoom,
+                             x=dispimg:size(3)*window_zoom + (id-1+((k-1)-(k-1)%3)/3)*sizew*window_zoom,
+                             y=((k-1)%3)*sizeh*window_zoom + dispimg:size(2)*window_zoom/2,
                              zoom=window_zoom}
             end
          end

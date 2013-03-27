@@ -70,7 +70,7 @@ op:option{'-f', '--file', action='store', dest='file',
 op:option{'-th','--threshold', action='store', dest='threshold',
           help='set a threshold for detection', default=0.7}
 op:option{'-st','--std', action='store', dest='std',
-          help='set a gaussian spread for RBF', default=1}
+          help='set a gaussian spread for RBF', default=0.5}
 
 options,args = op:parse()
 options.classes = {'Object 1'} -- class names
