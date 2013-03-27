@@ -19,8 +19,8 @@ camera
 Use the command to test the network:
 
 ``` sh
-$ torch test-custom-network.lua                       # run a network defined in the script
-$ torch test-custom-network.lua --network=filename    # run an existing network
+$ torch test-network.lua                       # run a network defined in the script
+$ torch test-network.lua --network=filename    # run an existing network
 ```
 
 It feeds an input sequence from camera to the network. 
