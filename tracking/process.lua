@@ -141,6 +141,9 @@ local function process()
       ty = ty / downs + 1
 
       -- store patch and its code
+      patch = state.procFrame:narrow(3,lx,boxw/downs):narrow(2,ty,boxh/downs):clone()
+      local code = encoder_patch:forward(patch):clone()
+
       state.memory[state.learn.id] = state.memory[state.learn.id] or {}
       table.insert(state.memory[state.learn.id], {patch=patch, vector=code, weight=1, std=options.std})
 
