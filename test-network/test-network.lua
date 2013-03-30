@@ -23,9 +23,6 @@ op:option{'-n', '--network', action='store', dest='network',
           help='path to existing network', default='no-existing-network'}
 opt,args = op:parse()
 
--- add profiler
-profiler = xlua.Profiler()
-
 -- user-defined variables
 local platform  = 'xilinx_ml605'
 --local platform  = 'pico_m503'
@@ -80,9 +77,9 @@ nf:loadBytecode()
 camera = image.Camera{}
 function process()
    img    = image.scale(camera:forward(), iwidth, iheight)
-   profiler:start('neuflow transfer & process')
+   nf.profiler:start('neuflow transfer & process')
    result = nf:forward(img)
-   profiler:lap('neuflow transfer & process')
+   nf.profiler:lap('neuflow transfer & process')
 end
 
 -- display an output image on GUI
