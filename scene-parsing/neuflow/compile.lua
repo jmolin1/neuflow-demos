@@ -23,7 +23,7 @@ require 'neuflow/PyramidUnPacker'
 
 
 --local platform = 'xilinx_ml605'
-local platform = 'pico_m503'
+local platform = 'xilinx_ml605_tbsp'
 nf = neuflow.init {
 --  global_msg_level = 'detailled',
    prog_name   = 'scene-parsing',

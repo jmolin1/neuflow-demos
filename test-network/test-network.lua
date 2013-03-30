@@ -24,8 +24,8 @@ op:option{'-n', '--network', action='store', dest='network',
 opt,args = op:parse()
 
 -- user-defined variables
-local platform  = 'xilinx_ml605'
---local platform  = 'pico_m503'
+--local platform  = 'xilinx_ml605'
+local platform  = 'xilinx_ml605_tbsp'
 local prog_name = 'Network-on-neuFlow'
 local ichannel  = 3
 local iwidth    = 320

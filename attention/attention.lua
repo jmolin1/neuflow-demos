@@ -41,9 +41,9 @@ counting = 0
 -- INIT: initialize the neuFlow context
 -- a mem manager, the dataflow core, and the compiler
 
--- platform='xilinx_ml605' or platform='pico_m503'
+--local platform = 'xilinx_ml605'
+local platform = 'xilinx_ml605_tbsp'
 
-local platform = 'pico_m503'
 neuFlow = neuflow.init {
    prog_name   = 'attention',
    platform    = platform,
