@@ -90,9 +90,6 @@ op:summarize()
 -- do everything in float
 torch.setdefaulttensortype('torch.FloatTensor')
 
--- use profiler
-p = xlua.Profiler()
-
 -- classes
 if opt.task == 'stanford' then
    classes = {'unknown','sky','tree','road','grass','water','building',
@@ -174,7 +171,12 @@ classifier = nn.SpatialClassifier(classifier1)
 network.modules[2] = classifier
 
 -- neuflow?
-if opt.neuflow then require 'neuflow/compile' end
+if opt.neuflow then
+   require 'neuflow/compile'
+   p = nf.profiler
+else
+   p = xlua.Profiler()
+end
 
 -- load video
 if opt.video then
