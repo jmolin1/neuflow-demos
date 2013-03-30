@@ -23,6 +23,9 @@ op:option{'-n', '--network', action='store', dest='network',
           help='path to existing network', default='no-existing-network'}
 opt,args = op:parse()
 
+-- add profiler
+profiler = xlua.Profiler()
+
 -- user-defined variables
 local platform  = 'xilinx_ml605'
 --local platform  = 'pico_m503'
@@ -77,7 +80,9 @@ nf:loadBytecode()
 camera = image.Camera{}
 function process()
    img    = image.scale(camera:forward(), iwidth, iheight)
+   profiler:start('on-board-processing')
    result = nf:forward(img)
+   profiler:lap('on-board-processing')
 end
 
 -- display an output image on GUI
