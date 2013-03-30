@@ -1,8 +1,8 @@
 require 'neuflow'
 
 -- user-defined variables
-local platform  = 'xilinx_ml605'
---local platform  = 'pico_m503'
+--local platform  = 'xilinx_ml605'
+local platform  = 'xilinx_ml605_tbsp'
 local prog_name = title 
 
 -- network architecture
