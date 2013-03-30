@@ -248,8 +248,8 @@ function process()
    end
 
    if (target=='neuflow') then
-      profiler_onboard = neuFlow.profiler:start('on-board-processing')
-      neuFlow.profiler:setColor('on-board-processing', 'blue')
+      neuFlow.profiler:start('neuflow transfer & process')
+      neuFlow.profiler:setColor('neuflow transfer & process', 'red')
       neuFlow:copyToDev(intensity)
       neuFlow:copyToDev(inputs)
       neuFlow:copyToDev(intensitydiv)
@@ -261,7 +261,7 @@ function process()
       neuFlow:copyFromDev(output5)
 
       neuFlow:copyFromDev(salience)
-      neuFlow.profiler:lap('on-board-processing')
+      neuFlow.profiler:lap('neuflow transfer & process')
    else
 
       one_map = torch.Tensor(1,size,size)

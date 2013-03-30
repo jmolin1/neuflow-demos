@@ -81,9 +81,9 @@ local function process()
    ------------------------------------------------------------
    -- (2) encode a full scene
    ------------------------------------------------------------
-   profiler:start('on-board-processing')
+   profiler:start('neuflow transfer & process')
    denseFeatures = encoder_full:forward(state.procFrame)
-   profiler:lap('on-board-processing')
+   profiler:lap('neuflow transfer & process')
 
    ------------------------------------------------------------
    -- (3) generate a confidence map

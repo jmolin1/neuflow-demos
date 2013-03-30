@@ -80,9 +80,9 @@ nf:loadBytecode()
 camera = image.Camera{}
 function process()
    img    = image.scale(camera:forward(), iwidth, iheight)
-   profiler:start('on-board-processing')
+   profiler:start('neuflow transfer & process')
    result = nf:forward(img)
-   profiler:lap('on-board-processing')
+   profiler:lap('neuflow transfer & process')
 end
 
 -- display an output image on GUI
