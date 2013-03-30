@@ -39,9 +39,11 @@ print('')
 if options.neuflow then
    encoder_full  = require 'compile-neuflow'
    encoder_patch = encoderm:clone()
+   profiler      = encoder_full.profiler
 else
    encoder_full  = encoderm:clone()
    encoder_patch = encoderm:clone()
+   profiler      = xlua.Profiler()
 end
 
 function GetMax(a)

@@ -24,7 +24,6 @@
 --            Clement Farabet, Yann LeCun
 -------------------------------------------------------------------
 
-require 'xlua'
 require 'nnx'
 
 title = 'Tracking with Deep Neural Networks'
@@ -83,9 +82,6 @@ print('')
 print('e-Lab ' .. title) 
 print('loading encoder:')
 print('')
-
--- profiler
-profiler = xlua.Profiler()
 
 -- load required submodules
 state = require 'state'
