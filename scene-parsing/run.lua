@@ -43,7 +43,7 @@ op:option{'-h', '--height', action='store', dest='height',
 op:option{'-z', '--zoom', action='store', dest='zoom',
           help='display zoom', default=1}
 op:option{'-tk', '--task', action='store', dest='task',
-          help='determine which classes to use', default='stanford'}
+          help='determine which classes to use: stanford | siftflow | multinet', default='stanford'}
 op:option{'-m', '--method', action='store', dest='method',
           help='parsing method: dense | centroids', default='dense'}
 op:option{'-nf', '--neuflow', action='store_true', dest='neuflow',
@@ -151,6 +151,17 @@ elseif opt.task == 'siftflow' then
                                [34]={0.1, 0.6, 1.0}} -- window
 
    defaultnet = 'siftflow.net'
+
+elseif opt.task == 'multinet' then
+   classes = {'pedestrian','stop','background','car'}
+
+   colormap = imgraph.colormap{[1] ={0.0, 0.0, 1.0}, -- pedestrian
+                               [2] ={1.0, 0.0, 0.0}, -- stop
+                               [3] ={0.0, 0.0, 0.0}, -- background
+                               [4] ={0.0, 1.0, 0.0}} -- car
+
+   defaultnet = 'multinet.net'
+
 else
    error 'unknown task'
 end
