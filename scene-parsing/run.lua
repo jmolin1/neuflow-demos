@@ -21,43 +21,24 @@ xrequire('image',true)
 
 -- parse args
 op = xlua.OptionParser('%prog [options]')
-op:option{'-v', '--video', action='store', dest='video',
-          help='video file to process'}
-op:option{'-n', '--network', action='store', dest='network',
-          help='path to existing [trained] network'}
-op:option{'-s', '--save', action='store', dest='save',
-          help='path to save segmented video'}
-op:option{'-lib', '--ffmpeglib', action='store_true', 
-          dest='useffmpeglib', default=false,
-          help='use ffmpeglib module to read frames directly from video'}
-op:option{'-k', '--seek', action='store', dest='seek',
-          help='seek number of seconds', default=0}
-op:option{'-f', '--fps', action='store', dest='fps',
-          help='number of frames per second', default=10}
-op:option{'-t', '--time', action='store', dest='seconds',
-          help='length to process (in seconds)', default=10}
-op:option{'-w', '--width', action='store', dest='width',
-          help='resize video, width', default=320}
-op:option{'-h', '--height', action='store', dest='height',
-          help='resize video, height', default=256}
-op:option{'-z', '--zoom', action='store', dest='zoom',
-          help='display zoom', default=1}
-op:option{'-tk', '--task', action='store', dest='task',
-          help='determine which classes to use: stanford | siftflow | multinet', default='stanford'}
-op:option{'-m', '--method', action='store', dest='method',
-          help='parsing method: dense | centroids', default='dense'}
-op:option{'-nf', '--neuflow', action='store_true', dest='neuflow',
-          help='compute convnet using neuflow', default=false}   --false
-op:option{'-fst', '--fast', action='store_true', dest='fast',
-          help='use all sorts of tricks to be the fastest possible', default=false}
-op:option{'-cf', '--confidence', action='store', dest='confidence',
-          help='min confidence to produce results', default=0.3}
-op:option{'-ds', '--downsampling', action='store', dest='downsampling',
-          help='downsample input frame for processing', default=2}
-op:option{'-cr', '--crop', action='store', dest='crop',
-          help='crop region in main image for processing', default=nil}
-op:option{'-c', '--camera', action='store', dest='camidx',
-          help='if source=camera, specify the camera index: /dev/videoIDX', default=0}
+op:option{'-v', '--video', action='store', dest='video', help='video file to process'}
+op:option{'-n', '--network', action='store', dest='network', help='path to existing [trained] network'}
+op:option{'-s', '--save', action='store', dest='save', help='path to save segmented video'}
+op:option{'-lib', '--ffmpeglib', action='store_true', dest='useffmpeglib', default=false, help='use ffmpeglib module to read frames directly from video'}
+op:option{'-k', '--seek', action='store', dest='seek', help='seek number of seconds', default=0}
+op:option{'-f', '--fps', action='store', dest='fps', help='number of frames per second', default=10}
+op:option{'-t', '--time', action='store', dest='seconds', help='length to process (in seconds)', default=10}
+op:option{'-w', '--width', action='store', dest='width', help='resize video, width', default=320}
+op:option{'-h', '--height', action='store', dest='height', help='resize video, height', default=256}
+op:option{'-z', '--zoom', action='store', dest='zoom', help='display zoom', default=1}
+op:option{'-tk', '--task', action='store', dest='task', help='determine which classes to use: stanford | siftflow | multinet', default='stanford'}
+op:option{'-m', '--method', action='store', dest='method', help='parsing method: dense | centroids', default='dense'}
+op:option{'-nf', '--neuflow', action='store_true', dest='neuflow', help='compute convnet using neuflow', default=false}   --false
+op:option{'-fst', '--fast', action='store_true', dest='fast', help='use all sorts of tricks to be the fastest possible', default=false}
+op:option{'-cf', '--confidence', action='store', dest='confidence', help='min confidence to produce results', default=0.3}
+op:option{'-ds', '--downsampling', action='store', dest='downsampling', help='downsample input frame for processing', default=2}
+op:option{'-cr', '--crop', action='store', dest='crop', help='crop region in main image for processing', default=nil}
+op:option{'-c', '--camera', action='store', dest='camidx', help='if source=camera, specify the camera index: /dev/videoIDX', default=0}
 opt,args = op:parse()
 
 
@@ -153,7 +134,7 @@ elseif opt.task == 'siftflow' then
    defaultnet = 'siftflow.net'
 
 elseif opt.task == 'multinet' then
-   classes = {'pedestrian','stop','background','car'}
+   classes = {'pd','st','','cr'}
 
    colormap = imgraph.colormap{[1] ={0.0, 0.0, 1.0}, -- pedestrian
                                [2] ={1.0, 0.0, 0.0}, -- stop
@@ -245,6 +226,10 @@ gaussian = image.gaussian(3)
 -- softmax
 softmax = nn.SoftMax()
 
+-- normalisation
+neighborhood = image.gaussian1D(7)
+normalization = nn.SpatialContrastiveNormalization(1, neighborhood, 1e-3):float()
+
 -- process function
 function process()
    -- (1) grab frame
@@ -272,6 +257,16 @@ function process()
       frame = image.scale(cframe, width, height)
    else
       frame = cframe:clone()
+   end
+   if opt.task == 'multinet' then
+      frame = image.rgb2yuv(frame)
+      frame[{ {1},{},{} }] = normalization:forward(frame[{ {1},{},{} }])
+      for i = 2,3 do
+         mean = frame[{ i,{},{} }]:mean()
+         std = frame[{ i,{},{} }]:std()
+         frame[{ i,{},{} }]:add(-mean)
+         frame[{ i,{},{} }]:div(std)
+      end
    end
    p:lap('get next frame')
    -- (2) process frame through foveanet
@@ -394,11 +389,9 @@ function display()
    end
    -- (2) display raw input
    if frame:size(3) > 2*frame:size(2) then
-      image.display{image=fframe, win=win, y=fframe:size(2)*opt.zoom,
-                    zoom=opt.zoom, min=0, max=1}
+      image.display{image=fframe, win=win, y=fframe:size(2)*opt.zoom, zoom=opt.zoom, min=0, max=1}
    else
-      image.display{image=fframe, win=win, x=fframe:size(3)*opt.zoom,
-                    zoom=opt.zoom, min=0, max=1}
+      image.display{image=fframe, win=win, x=fframe:size(3)*opt.zoom, zoom=opt.zoom, min=0, max=1}
    end
 
    -- map just the processed part back into the whole image
@@ -424,8 +417,7 @@ function display()
       colored:add(fframe)
    end
    -- (3) overlay segmentation on input frame
-   image.display{image=colored, win=win,
-                 zoom=opt.zoom, min=0, max=colored:max()}
+   image.display{image=colored, win=win, zoom=opt.zoom, min=0, max=colored:max()}
 
    -- (4) print classes
    if opt.method == 'centroids' then
@@ -435,12 +427,7 @@ function display()
          components.surface[i] = components.surface[i] * 16
       end
    end
-   segmtools.overlayclasses{win=win, classes=classes, 
-                            components=components,
-                            zoom=opt.zoom*opt.downsampling, 
-                            minsize=200, font=12,
-                            offx = offx, offy = offy
-                         }
+   segmtools.overlayclasses{win=win, classes=classes, components=components, zoom=opt.zoom*opt.downsampling, minsize=200, font=12, offx = offx, offy = offy}
 
    -- (5) save ?
    if opt.save then
