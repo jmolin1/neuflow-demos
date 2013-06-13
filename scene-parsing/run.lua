@@ -1,4 +1,5 @@
-#!/usr/bin/env torch -m
+#!/usr/bin/env torch
+-- #!/usr/bin/env torch -m
 ------------------------------------------------------------
 -- a scene segmenter, base on a ConvNet trained end-to-end
 -- to predict class distributions at dense locations.
@@ -15,33 +16,32 @@ require 'ffmpeg'
 require 'imgraph'
 require 'nnx'
 require 'segmtools'
+require 'Dropout'
 
 xrequire('camera',true)
 xrequire('image',true)
 
 -- parse args
 op = xlua.OptionParser('%prog [options]')
-op:option{'-v', '--video', action='store', dest='video', help='video file to process'}
-op:option{'-n', '--network', action='store', dest='network', help='path to existing [trained] network'}
-op:option{'-s', '--save', action='store', dest='save', help='path to save segmented video'}
-op:option{'-lib', '--ffmpeglib', action='store_true', dest='useffmpeglib', default=false, help='use ffmpeglib module to read frames directly from video'}
-op:option{'-k', '--seek', action='store', dest='seek', help='seek number of seconds', default=0}
-op:option{'-f', '--fps', action='store', dest='fps', help='number of frames per second', default=10}
-op:option{'-t', '--time', action='store', dest='seconds', help='length to process (in seconds)', default=10}
-op:option{'-w', '--width', action='store', dest='width', help='resize video, width', default=320}
-op:option{'-h', '--height', action='store', dest='height', help='resize video, height', default=256}
-op:option{'-z', '--zoom', action='store', dest='zoom', help='display zoom', default=1}
-op:option{'-tk', '--task', action='store', dest='task', help='determine which classes to use: stanford | siftflow | multinet', default='stanford'}
-op:option{'-m', '--method', action='store', dest='method', help='parsing method: dense | centroids', default='dense'}
-op:option{'-nf', '--neuflow', action='store_true', dest='neuflow', help='compute convnet using neuflow', default=false}   --false
-op:option{'-fst', '--fast', action='store_true', dest='fast', help='use all sorts of tricks to be the fastest possible', default=false}
-op:option{'-cf', '--confidence', action='store', dest='confidence', help='min confidence to produce results', default=0.3}
-op:option{'-ds', '--downsampling', action='store', dest='downsampling', help='downsample input frame for processing', default=2}
-op:option{'-cr', '--crop', action='store', dest='crop', help='crop region in main image for processing', default=nil}
-op:option{'-c', '--camera', action='store', dest='camidx', help='if source=camera, specify the camera index: /dev/videoIDX', default=0}
+op:option{'-v',   '--video',        action='store',      dest='video',        help='video (or image) file to process'}
+op:option{'-n',   '--network',      action='store',      dest='network',      help='path to existing [trained] network'}
+op:option{'-s',   '--save',         action='store',      dest='save',         help='path to save segmented video'}
+op:option{'-lib', '--ffmpeglib',    action='store_true', dest='useffmpeglib', default=false, help='use ffmpeglib module to read frames directly from video'}
+op:option{'-k',   '--seek',         action='store',      dest='seek',         help='seek number of seconds', default=0}
+op:option{'-f',   '--fps',          action='store',      dest='fps',          help='number of frames per second', default=10}
+op:option{'-t',   '--time',         action='store',      dest='seconds',      help='length to process (in seconds)', default=10}
+op:option{'-w',   '--width',        action='store',      dest='width',        help='resize video, width', default=320}
+op:option{'-h',   '--height',       action='store',      dest='height',       help='resize video, height', default=256}
+op:option{'-z',   '--zoom',         action='store',      dest='zoom',         help='display zoom', default=1}
+op:option{'-tk',  '--task',         action='store',      dest='task',         help='determine which classes to use: stanford | siftflow | multinet', default='stanford'}
+op:option{'-m',   '--method',       action='store',      dest='method',       help='parsing method: dense | centroids', default='dense'}
+op:option{'-nf',  '--neuflow',      action='store_true', dest='neuflow',      help='compute convnet using neuflow', default=false}   --false
+op:option{'-fst', '--fast',         action='store_true', dest='fast',         help='use all sorts of tricks to be the fastest possible', default=false}
+op:option{'-cf',  '--confidence',   action='store',      dest='confidence',   help='min confidence to produce results', default=0.3}
+op:option{'-ds',  '--downsampling', action='store',      dest='downsampling', help='downsample input frame for processing', default=2}
+op:option{'-cr',  '--crop',         action='store',      dest='crop',         help='crop region in main image for processing', default=nil}
+op:option{'-c',   '--camera',       action='store',      dest='camidx',       help='if source=camera, specify the camera index: /dev/videoIDX', default=0}
 opt,args = op:parse()
-
-
 
 opt.downsampling = tonumber(opt.downsampling)
 
@@ -51,12 +51,12 @@ offy = 0
 if opt.crop then
    dofile('split.lua')
    opt.crop = split(opt.crop,',')
-   for i = 1,4 do 
+   for i = 1,4 do
       opt.crop[i] = tonumber(opt.crop[i])
    end
-   -- network needs input divisible by 16 
+   -- network needs input divisible by 16
    -- FIXME make this internal and cleaner
-   for i = 3,4 do 
+   for i = 3,4 do
       if not ((opt.crop[i] % 16) == 0) then
          opt.crop[i] = opt.crop[i] + 16 - (opt.crop[i] % 16)
       end
@@ -182,7 +182,7 @@ if opt.video then
    elseif opt.video:find('.lua$') then
       -- pass a script as the video for live cameras.  Allows for
       -- complicated stitching and simple single camera scenarios.
-      dofile(opt.video) 
+      dofile(opt.video)
       elseif opt.useffmpeglib then
       print("Using ffmpeglib")
       require 'ffmpeglib'
@@ -191,21 +191,21 @@ if opt.video then
       video.fp = ffmpeg.open(opt.video,opt.width,opt.height)
       video.frame = torch.Tensor()
       video.nframes = 0
-      video.forward = 
+      video.forward =
          function ()
-             video.nframes = video.nframes + 1 
-             video.frame.ffmpeg.getFrame(video.fp,video.frame) 
+             video.nframes = video.nframes + 1
+             video.frame.ffmpeg.getFrame(video.fp,video.frame)
              return video.frame
-         end 
+         end
    else
       -- old style video
-      video = ffmpeg.Video{path=opt.video, 
+      video = ffmpeg.Video{path=opt.video,
                         width=opt.width, height=opt.height,
-                        fps=opt.fps, length=opt.seconds, seek=opt.seek, 
+                        fps=opt.fps, length=opt.seconds, seek=opt.seek,
                         encoding='jpg',
                         delete=false}
    end
-else 
+else
   camera = image.Camera{}
 end
 
@@ -246,9 +246,9 @@ function process()
    if opt.crop then
       width = opt.crop[3]
       height = opt.crop[4]
-      cframe = 
-         fframe:narrow(3,opt.crop[1],width):narrow(2,opt.crop[2],height) 
-   else 
+      cframe =
+         fframe:narrow(3,opt.crop[1],width):narrow(2,opt.crop[2],height)
+   else
       cframe = fframe
    end
    if opt.downsampling > 1 then
@@ -398,7 +398,7 @@ function display()
    if opt.crop then
       if opt.downsampling > 1 then
          colored = image.scale(colored,opt.crop[3],opt.crop[4])
-      end 
+      end
       local tmp = torch.Tensor():resizeAs(fframe):fill(0.5)
       local ctmp = tmp:narrow(3,opt.crop[1],opt.crop[3]):narrow(2,opt.crop[2],opt.crop[4])
       ctmp:copy(colored)
@@ -406,7 +406,7 @@ function display()
    else
       if opt.downsampling > 1 then
          colored = image.scale(colored,fframe:size(3),fframe:size(2))
-      end 
+      end
    end
 
 
