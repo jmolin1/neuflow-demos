@@ -182,7 +182,7 @@ end
 if opt.video then
    if opt.video:find('jpg') or opt.video:find('png') then
       local i = image.load(opt.video)
-      i = image.scale(i, opt.width, opt.height)
+      i = image.scale(i, tonumber(opt.width), tonumber(opt.height))
       video = {}
       video.forward = function()
                         return i
