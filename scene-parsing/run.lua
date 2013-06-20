@@ -260,13 +260,17 @@ function process()
    end
    if opt.task == 'multinet' then
       frame = image.rgb2yuv(frame)
-      frame[{ {1},{},{} }] = normalization:forward(frame[{ {1},{},{} }])
+      -- SCN
+      for c = 1,3 do
+         frame[{ {c},{},{} }] = normalization:forward(frame[{ {c},{},{} }])
+      end
+      --[[ UV statistical normalisation
       for i = 2,3 do
          mean = frame[{ i,{},{} }]:mean()
          std = frame[{ i,{},{} }]:std()
          frame[{ i,{},{} }]:add(-mean)
          frame[{ i,{},{} }]:div(std)
-      end
+      end]]
    end
    p:lap('get next frame')
    -- (2) process frame through foveanet
