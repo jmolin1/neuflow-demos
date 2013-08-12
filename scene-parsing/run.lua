@@ -33,7 +33,7 @@ op:option{'-t',   '--time',         action='store',      dest='seconds',      he
 op:option{'-w',   '--width',        action='store',      dest='width',        help='resize video, width', default=320}
 op:option{'-h',   '--height',       action='store',      dest='height',       help='resize video, height', default=256}
 op:option{'-z',   '--zoom',         action='store',      dest='zoom',         help='display zoom', default=1}
-op:option{'-tk',  '--task',         action='store',      dest='task',         help='determine which classes to use: stanford | siftflow | multinet', default='stanford'}
+op:option{'-tk',  '--task',         action='store',      dest='task',         help='determine which classes to use: stanford | siftflow | mySiftflow | multinet', default='stanford'}
 op:option{'-m',   '--method',       action='store',      dest='method',       help='parsing method: dense | centroids', default='dense'}
 op:option{'-nf',  '--neuflow',      action='store_true', dest='neuflow',      help='compute convnet using neuflow', default=false}   --false
 op:option{'-fst', '--fast',         action='store_true', dest='fast',         help='use all sorts of tricks to be the fastest possible', default=false}
@@ -88,7 +88,7 @@ if opt.task == 'stanford' then
 
    defaultnet = 'stanford.net'
 
-elseif opt.task == 'siftflow' then
+elseif (opt.task == 'siftflow' or opt.task == 'mySiftflow') then
    classes = {'unknown',
               'awning', 'balcony', 'bird', 'boat', 'bridge', 'building', 'bus',
               'car', 'cow', 'crosswalk', 'desert', 'door', 'fence', 'field',
@@ -230,6 +230,61 @@ softmax = nn.SoftMax()
 neighborhood = image.gaussian1D(7)
 normalization = nn.SpatialContrastiveNormalization(1, neighborhood, 1e-3):float()
 
+-- preprocessing network (it should be integrated into the network itself)
+if opt.task == 'mySiftflow' then
+   local filterSize = 15
+   local planes = 3
+   local normthres = 1e-1
+   opt.preproc = 'norm(y)+norm(u)+norm(v)'
+
+   -- Preprocessor (normalizer)
+   preproc = nn.Sequential()
+   if opt.preproc == 'norm(rgb)' then
+      preproc:add(nn.SpatialContrastiveNormalization(planes, image.gaussian1D(filterSize), normthres))
+   elseif opt.preproc == 'norm(yuv)' then
+      preproc:add(nn.SpatialColorTransform('rgb2yuv'))
+      preproc:add(nn.SpatialContrastiveNormalization(planes, image.gaussian1D(filterSize), normthres))
+   elseif opt.preproc == 'norm(y)+norm(u)+norm(v)' then
+      preproc:add(nn.SpatialColorTransform('rgb2yuv'))
+      do
+         normer = nn.ConcatTable()
+         for i = 1,3 do
+            local n = nn.Sequential()
+            n:add(nn.Narrow(1,i,1))
+            n:add(nn.SpatialContrastiveNormalization(1, image.gaussian1D(filterSize), normthres))
+            normer:add(n)
+         end
+      end
+      preproc:add(normer)
+      preproc:add(nn.JoinTable(1))
+   elseif opt.preproc == 'norm(y)+uv' then
+      preproc:add(nn.SpatialColorTransform('rgb2yuv'))
+      do
+         ynormer = nn.Sequential()
+         ynormer:add(nn.Narrow(1,1,1))
+         ynormer:add(nn.SpatialContrastiveNormalization(1, image.gaussian1D(filterSize), normthres))
+         normer = nn.ConcatTable()
+         normer:add(ynormer)
+         normer:add(nn.Narrow(1,2,2))
+      end
+      preproc:add(normer)
+      preproc:add(nn.JoinTable(1))
+   elseif opt.preproc == 'norm(y)' then
+      planes = 1
+      preproc:add(nn.SpatialColorTransform('rgb2y'))
+      preproc:add(nn.SpatialContrastiveNormalization(1, image.gaussian1D(filterSize), normthres))
+   elseif opt.preproc == 'rgb' then
+      preproc:add(nn.Identity())
+   elseif opt.preproc == 'yuv' then
+      preproc:add(nn.SpatialColorTransform('rgb2yuv'))
+   else
+      print('incorrect arg: preproc')
+      op:help()
+      os.exit()
+   end
+end
+
+
 -- process function
 function process()
    -- (1) grab frame
@@ -271,6 +326,9 @@ function process()
          frame[{ i,{},{} }]:add(-mean)
          frame[{ i,{},{} }]:div(std)
       end]]
+   end
+   if opt.task == 'mySiftflow' then
+      frame = preproc:forward(frame)
    end
    p:lap('get next frame')
    -- (2) process frame through foveanet
