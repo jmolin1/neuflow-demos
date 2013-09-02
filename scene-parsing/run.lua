@@ -15,6 +15,7 @@ require 'ffmpeg'
 require 'imgraph'
 require 'nnx'
 require 'segmtools'
+--require 'cunn'
 
 xrequire('camera',true)
 xrequire('image',true)
@@ -51,7 +52,7 @@ op:option{'-nf', '--neuflow', action='store_true', dest='neuflow',
 op:option{'-fst', '--fast', action='store_true', dest='fast',
           help='use all sorts of tricks to be the fastest possible', default=false}
 op:option{'-cf', '--confidence', action='store', dest='confidence',
-          help='min confidence to produce results', default=0.3}
+          help='min confidence to produce results', default=0.5}
 op:option{'-ds', '--downsampling', action='store', dest='downsampling',
           help='downsample input frame for processing', default=2}
 op:option{'-cr', '--crop', action='store', dest='crop',
@@ -90,31 +91,18 @@ op:summarize()
 -- do everything in float
 torch.setdefaulttensortype('torch.FloatTensor')
 
+-- use profiler
+p = xlua.Profiler()
+
 -- classes
-if opt.task == 'stanford' then
-   classes = {'unknown','sky','tree','road','grass','water','building',
-              'mountain','object'}
 
-   colormap = imgraph.colormap{[1]={0.0000, 0.0000, 0.0000},
-                               [2]={0.0706, 0.7255, 0.9412},
-                               [3]={0.2157, 0.8275, 0.1843},
-                               [4]={0.3294, 0.6824, 0.4902},
-                               [5]={0.2235, 0.9804, 0.0314},
-                               [6]={0.2196, 0.3608, 0.7961},
-                               [7]={0.7216, 0.7216, 0.2902},
-                               [8]={0.6667, 0.4588, 0.3490},
-                               [9]={0.9647, 0.0471, 0.3216}}
-
-   defaultnet = 'stanford.net'
-
-elseif opt.task == 'siftflow' then
-   classes = {'unknown',
+if opt.task == 'siftflow' then                           
+    classes = {'unknown',
               'awning', 'balcony', 'bird', 'boat', 'bridge', 'building', 'bus',
               'car', 'cow', 'crosswalk', 'desert', 'door', 'fence', 'field',
               'grass', 'moon', 'mountain', 'person', 'plant', 'pole', 'river',
               'road', 'rock', 'sand', 'sea', 'sidewalk', 'sign', 'sky',
               'staircase', 'streetlight', 'sun', 'tree', 'window'}
-
    colormap = imgraph.colormap{[1] ={0.0, 0.0, 0.0},
                                [2] ={0.5, 0.5, 0.5}, -- awning
                                [3] ={0.9, 0.3, 0.3}, -- balcony
@@ -151,6 +139,27 @@ elseif opt.task == 'siftflow' then
                                [34]={0.1, 0.6, 1.0}} -- window
 
    defaultnet = 'siftflow.net'
+
+elseif opt.task == 'siftsmall' then
+  
+   classes = {'unknown',
+           'building',
+           'car', 
+           'grass', 'person', 
+           'road',  'sign', 'sky',
+           'tree'}
+   colormap = imgraph.colormap{[1] ={0.0, 0.0, 0.0},                            
+                               [2] ={0.7, 0.7, 0.3}, -- building
+                               [3] ={0.4, 0.4, 0.8}, -- car
+                               [4]={0.0, 0.9, 0.0}, -- grass                      
+                               [5]={1.0, 0.0, 0.3}, -- person                             
+                               [6]={0.3, 0.3, 0.3}, -- road                        
+                               [7]={1.0, 0.1, 0.1}, -- sign
+                               [8]={0.0, 0.7, 0.9}, -- sky                           
+                               [9]={0.2, 0.8, 0.1}} -- tree
+  
+   defaultnet = 'small.net'
+
 else
    error 'unknown task'
 end
@@ -159,30 +168,53 @@ end
 if opt.fast then
    opt.method = 'centroids'
 end
-
 -- load pre-trained network from disk
 network = torch.load(opt.network or defaultnet)
-network:type(torch.getdefaulttensortype())
+--network:type(torch.getdefaulttensortype())
+network:type('torch.FloatTensor')
+if opt.task == 'siftsmall'  then
+   local filterSize = 15
+   local planes = 3
+   local normthres = 1e-1
 
--- replace classifier (2nd module) by SpatialClassifier
-foveanet = network.modules[1]
+    -- replace classifier (2nd module) by SpatialClassifier
+    preproc = nn.Sequential()
+    preproc:add(nn.SpatialColorTransform('rgb2yuv'))
+      do
+         normer = nn.ConcatTable()
+         for i = 1,3 do
+            local n = nn.Sequential()
+            n:add(nn.Narrow(1,i,1))
+            n:add(nn.SpatialContrastiveNormalization(1, image.gaussian1D(filterSize), normthres))
+            normer:add(n)
+         end
+      end
+    preproc:add(normer)
+    preproc:add(nn.JoinTable(1))
+    foveanet = nn.Sequential()
+    foveanet:add(preproc)
+    foveanet:add(network.modules[1])
+    network.modules[2].modules[4].train = false
+else 
+   foveanet = network.modules[1]
+  
+end
+
+
 classifier1 = network.modules[2]
+
+print('classifier1', classifier1)
 classifier = nn.SpatialClassifier(classifier1)
 network.modules[2] = classifier
 
 -- neuflow?
-if opt.neuflow then
-   require 'neuflow/compile'
-   p = nf.profiler
-else
-   p = xlua.Profiler()
-end
+if opt.neuflow then require 'neuflow/compile' end
 
 -- load video
 if opt.video then
    if opt.video:find('jpg') or opt.video:find('png') then
       local i = image.load(opt.video)
-      i = image.scale(i, tonumber(opt.width), tonumber(opt.height))
+      i = image.scale(i, opt.width, opt.height)
       video = {}
       video.forward = function()
                         return i
@@ -288,9 +320,11 @@ function process()
       p:start('compute class distributions')
       distributions = classifier:forward(features)
       p:lap('compute class distributions')
-
+      --print(classifier.modules[1])
       -- crap
+      --print('features', features)
       distributions = nn.SpatialClassifier(nn.SoftMax()):forward(distributions)
+      --print(distributions)
       --for _,i in ipairs{3,4,6,10,12,14,15,16,17,18,22,24,25,26,9,28} do
       --   distributions[i]:mul(0.05)
       --end
@@ -309,6 +343,9 @@ function process()
       p:start('winner take-all')
       _,winners = torch.max(distributions,1)
       winner = winners[1]
+      --print('distribution', distributions)
+      --print('winner', winner)
+      
       p:lap('winner take-all')
 
    elseif opt.method == 'centroids' then
@@ -464,7 +501,7 @@ qt.connect(timer,
               timer:start()
               collectgarbage()
               p:lap('total')
-              p:printAll()
+             -- p:printAll()
               print('')
            end)
 timer:start()
