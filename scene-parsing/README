@@ -1,3 +1,5 @@
+Run the small number of categories  on the cpu 
+torch ./run.lua -v ./videos/street-brooklyn-1.mov -tk 'siftsmall' -w 512 -h 288
 
 Run no the board 
 camera: 
