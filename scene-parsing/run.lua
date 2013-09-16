@@ -16,7 +16,8 @@ require 'ffmpeg'
 require 'imgraph'
 require 'nnx'
 require 'segmtools'
-require 'Dropout'
+require 'cunn'
+--require 'Dropout'
 
 xrequire('camera',true)
 xrequire('image',true)
