@@ -34,7 +34,7 @@ op:option{'-t',   '--time',         action='store',      dest='seconds',      he
 op:option{'-w',   '--width',        action='store',      dest='width',        help='resize video, width', default=320}
 op:option{'-h',   '--height',       action='store',      dest='height',       help='resize video, height', default=256}
 op:option{'-z',   '--zoom',         action='store',      dest='zoom',         help='display zoom', default=1}
-op:option{'-tk',  '--task',         action='store',      dest='task',         help='determine which classes to use: stanford | siftflow | mySiftflow | multinet', default='stanford'}
+op:option{'-tk',  '--task',         action='store',      dest='task',         help='determine which classes to use: stanford | siftflow | mySiftflow | multinet | siftSmall', default='stanford'}
 op:option{'-m',   '--method',       action='store',      dest='method',       help='parsing method: dense | centroids', default='dense'}
 op:option{'-nf',  '--neuflow',      action='store_true', dest='neuflow',      help='compute convnet using neuflow', default=false}   --false
 op:option{'-fst', '--fast',         action='store_true', dest='fast',         help='use all sorts of tricks to be the fastest possible', default=false}
@@ -144,6 +144,22 @@ elseif opt.task == 'multinet' then
 
    defaultnet = 'multinet.net'
 
+elseif opt.task == 'siftSmall' then
+
+   classes = {'unknown', 'building', 'car', 'grass', 'person', 'road', 'sign', 'sky', 'tree'}
+
+   colormap = imgraph.colormap{[1] ={0.0, 0.0, 0.0},
+                               [2] ={0.7, 0.7, 0.3}, -- building
+                               [3] ={0.4, 0.4, 0.8}, -- car
+                               [4]={0.0, 0.9, 0.0}, -- grass
+                               [5]={1.0, 0.0, 0.3}, -- person
+                               [6]={0.3, 0.3, 0.3}, -- road
+                               [7]={1.0, 0.1, 0.1}, -- sign
+                               [8]={0.0, 0.7, 0.9}, -- sky
+                               [9]={0.2, 0.8, 0.1}} -- tree
+
+   defaultnet = 'small.net'
+
 else
    error 'unknown task'
 end
@@ -232,7 +248,7 @@ neighborhood = image.gaussian1D(7)
 normalization = nn.SpatialContrastiveNormalization(1, neighborhood, 1e-3):float()
 
 -- preprocessing network (it should be integrated into the network itself)
-if opt.task == 'mySiftflow' then
+if opt.task == 'mySiftflow' then --or opt.task == 'siftSmall' then
    local filterSize = 15
    local planes = 3
    local normthres = 1e-1
@@ -328,7 +344,7 @@ function process()
          frame[{ i,{},{} }]:div(std)
       end]]
    end
-   if opt.task == 'mySiftflow' then
+   if opt.task == 'mySiftflow' then -- or opt.task == 'siftSmall' then
       frame = preproc:forward(frame)
    end
    p:lap('get next frame')
