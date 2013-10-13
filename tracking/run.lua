@@ -31,7 +31,7 @@ title = 'Tracking with Deep Neural Networks'
 -- parse args
 op = xlua.OptionParser('%prog [options]')
 op:option{'-t', '--threads', action='store', dest='threads',
-          help='set the number of threads', default=4}
+          help='set the number of threads', default=8}
 op:option{'-s', '--source', action='store', dest='source',
           help='image source, can be one of: camera | video | dataset', default='camera'}
 op:option{'-c', '--camera', action='store', dest='camidx',
